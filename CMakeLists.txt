@@ -152,15 +152,17 @@ INCLUDE(ConfigureChecks)
 ADD_SUBDIRECTORY(external/squirrel)
 
 ## Add squirrel lib dir to search path
+cmake_policy(SET CMP0015 NEW)
 
 LINK_DIRECTORIES(external/squirrel)
+
 
 ## Some additional include paths
 
 include_directories (${CMAKE_BINARY_DIR}/)
 include_directories (${CMAKE_CURRENT_SOURCE_DIR}/src/)
 include_directories (${CMAKE_CURRENT_SOURCE_DIR}/external/squirrel/include/)
-include_directories (${CMAKE_CURRENT_SOURCE_DIR}/external/tinygettext/)
+include_directories (${CMAKE_CURRENT_SOURCE_DIR}/external/tinygettext/include)
 include_directories (${CMAKE_CURRENT_SOURCE_DIR}/external/findlocale/)
 include_directories (${CMAKE_CURRENT_SOURCE_DIR}/external/obstack/)
 include_directories (${CMAKE_CURRENT_SOURCE_DIR}/external/binreloc/)
@@ -221,6 +223,20 @@ ENDIF(COMPILE_AMALGATION)
 OPTION(WERROR "Stop on first compiler warning" OFF)
 OPTION(WARNINGS "Enable long list of warnings for compiler to check" OFF)
 IF(CMAKE_COMPILER_IS_GNUCC)
+  # http://www.guyrutenberg.com/2014/01/05/enabling-c11-c0x-in-cmake/
+  include(CheckCXXCompilerFlag)
+  CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+  if(COMPILER_SUPPORTS_CXX11)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+  else(COMPILER_SUPPORTS_CXX11)
+    CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
+    if(COMPILER_SUPPORTS_CXX0X)
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+    else(COMPILER_SUPPORTS_CXX0X)
+      message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
+    endif(COMPILER_SUPPORTS_CXX0X)
+  endif(COMPILER_SUPPORTS_CXX11)
+
   SET(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "Debug flags")
   SET(CMAKE_C_FLAGS_DEBUG "-O0 -g" CACHE STRING "Debug flags")
   SET(CMAKE_CXX_FLAGS_PROFILE "-pg" CACHE STRING "Profile flags")

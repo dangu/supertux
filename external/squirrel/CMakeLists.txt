@@ -1,44 +1,68 @@
-#
-# SuperTux - squirrel library build script
-# Copyright (C) 2006 Christoph Sommer <christoph.sommer@2006.expires.deltadevelopment.de>
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-#
+if(MSVC)
+  cmake_minimum_required(VERSION 3.4)
+else()
+  cmake_minimum_required(VERSION 2.8)
+endif()
 
-## Add include/ to include directories
+set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}" CACHE PATH "")
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "")
 
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include/)
+project(squirrel C CXX)
 
-## build list of source files
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
-FILE(GLOB SQUIRREL_SOURCES squirrel/*.cpp sqstdlib/*.cpp sqstdlib/*.c)
+if(CMAKE_COMPILER_IS_GNUCXX)
+  set(SQ_FLAGS -fno-exceptions -fno-strict-aliasing -Wall -Wextra -pedantic -Wcast-qual)
 
-## Add in squirrel debug stuff
+  if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(SQ_FLAGS ${SQ_FLAGS} -O3)
+  elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    set(SQ_FLAGS ${SQ_FLAGS} -O3 -g)
+  elseif(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+    set(SQ_FLAGS ${SQ_FLAGS} -Os)
+  elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(SQ_FLAGS ${SQ_FLAGS} -pg -pie -gstabs -g3 -Og)
+  endif()
 
-OPTION(ENABLE_SQDBG "Build squirrel script interpreter with debugging options" OFF)
-IF(ENABLE_SQDBG)
-  INCLUDE_DIRECTORIES (${CMAKE_CURRENT_SOURCE_DIR}/squirrel/)
-  FILE(GLOB SQDBG_SOURCES sqdbg/*.cpp)
-  SET(SQUIRREL_SOURCES ${SQDBG_SOURCES} ${SQUIRREL_SOURCES})
-ENDIF(ENABLE_SQDBG)
+  if(CMAKE_VERSION VERSION_GREATER 3)
+    add_compile_options(${SQ_FLAGS})
+  else()
+    add_definitions(${SQ_FLAGS})
+  endif()
 
-# the squirrel sources are out of our control so don't be too pedantic about
-# them
-SET(CMAKE_CXX_FLAGS "")
-SET(CMAKE_C_FLAGS "")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -std=c++0x")
+elseif(MSVC)
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
 
-## define a target for building the library
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  add_definitions(-D_SQ64)
+endif()
 
-ADD_LIBRARY(squirrel ${SQUIRREL_SOURCES})
+if(NOT DEFINED INSTALL_BIN_DIR)
+  set(INSTALL_BIN_DIR bin)
+endif()
+
+if(NOT DEFINED INSTALL_LIB_DIR)
+  set(INSTALL_LIB_DIR lib)
+endif()
+
+add_subdirectory(squirrel)
+add_subdirectory(sqstdlib)
+add_subdirectory(sq)
+
+if(NOT WIN32)
+  set_target_properties(squirrel sqstdlib PROPERTIES SOVERSION 0 VERSION 0.0.0)
+endif()
+
+if(DEFINED INSTALL_INC_DIR)
+  set(SQ_PUB_HEADERS include/sqconfig.h
+                     include/sqstdaux.h
+                     include/sqstdblob.h
+                     include/sqstdio.h
+                     include/sqstdmath.h
+                     include/sqstdstring.h
+                     include/sqstdsystem.h
+                     include/squirrel.h)
+  install(FILES ${SQ_PUB_HEADERS} DESTINATION ${INSTALL_INC_DIR})
+endif()
